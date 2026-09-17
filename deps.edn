@@ -13,10 +13,10 @@
  ;; go back to a normal pin too.
  :deps {io.github.jlt-commons/glitter-core
         {:git/url "https://github.com/jlt-commons/glitter-core"
-         :git/sha "8fb74264008b087e1fec7b30cf81a2862188622c"}
+         :git/sha "4fba1ddb069be798adc1ef0c028e6e21a21ec9f3"}
         io.github.jlt-commons/glitter-uikit
         {:git/url "https://github.com/jlt-commons/glitter-uikit"
-         :git/sha "49effd68f914abcd5b78a0a3098e59a1b836870f"}
+         :git/sha "8923950aca52a6ddf6483a60ca8381cb590cad58"}
         ;; NOT transitive under jolt (org.clojure/clojure is terminal) — see
         ;; docs/guide/dependencies.md.
         org.clojure/spec.alpha {:mvn/version "0.5.238"}

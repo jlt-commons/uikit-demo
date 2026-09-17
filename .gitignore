@@ -1,0 +1,8 @@
+.DS_Store
+.clj-kondo
+.lsp
+.jolt
+.vscode
+src
+
+Demo.app

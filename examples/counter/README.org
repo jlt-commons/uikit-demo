@@ -1,0 +1,47 @@
+#+title: Counter
+#+author: Larry Staton
+
+* Counter
+
+The demo's first example — it *was* the main window until the hub arrived (its
+original form is preserved in the top-level notebook's View section). The
+shape is [[https://replicant.fun][Replicant]]'s counter, rendered through AppKit: own state atom, pure
+view, actions as data. It's also the hello-world of [[https://eugenkiss.github.io/7guis/tasks/#counter][7GUIs]], whose Counter
+task upstream implements too ([[https://github.com/burinc/glitter-uikit/blob/main/examples/glitter_uikit/counter.clj][examples/glitter_uikit/counter.clj]]) — comparing
+that version with this one shows what the hub's registry buys: theirs
+bootstraps its own app loop, ours is just a view.
+
+This notebook is also the template for every example: require only
+=demo.registry= (never =demo.core= — the dependency points the other way),
+=defmethod= your action specs and handlers beside the feature, and
+=register-example!= at the end. The hub picks it up through one =require= line
+in =demo.core=.
+
+#+begin_src clojure :tangle ../../src/demo/examples/counter.clj :mkdirp true :comments link
+(ns demo.examples.counter
+  (:require [clojure.spec.alpha :as s]
+            [demo.registry :as reg]))
+
+(defonce state (atom {:count 0}))
+
+(defn view [{:keys [count]}]
+  [:vbox {:spacing 12 :margin 16}
+   [:label {:markup [:span {:size "small" :foreground "#8e939d"} "COUNT"]}]
+   [:label {:markup [:span {:size "xx-large" :weight "bold"} (str count)]}]
+   [:hbox {:spacing 8 :homogeneous true}
+    [:button {:label "+ 1" :on {:click [[:action/inc]]}}]
+    [:button {:label "Reset" :on {:click [[:action/reset]]}}]
+    [:button {:label "- 1" :on {:click [[:action/dec]]}}]]])
+
+(defmethod reg/action-spec :action/inc [_] (s/cat :kind #{:action/inc}))
+(defmethod reg/action-spec :action/dec [_] (s/cat :kind #{:action/dec}))
+(defmethod reg/action-spec :action/reset [_] (s/cat :kind #{:action/reset}))
+
+(defmethod reg/run-action! :action/inc [_ _] (swap! state update :count inc))
+(defmethod reg/run-action! :action/dec [_ _] (swap! state update :count dec))
+(defmethod reg/run-action! :action/reset [_ _] (swap! state assoc :count 0))
+
+(reg/register-example!
+ {:id :counter :title "Counter" :view view :state state
+  :width 300 :height 170})
+#+end_src

@@ -1,0 +1,42 @@
+digraph dataflow {
+  rankdir=TB;
+  fontname="Helvetica";
+  node [shape=box, style=rounded, fontname="Helvetica", fontsize=11];
+  edge [fontname="Helvetica", fontsize=9];
+
+  subgraph cluster_views {
+    label="hiccup views (reconciled)";
+    style=dashed;
+    main  [label="hub view\n(main window)"];
+    prefs [label="prefs-view\n(Preferences window)"];
+    ex    [label="example views\n(one window each)"];
+  }
+
+  subgraph cluster_chrome {
+    label="AppKit chrome (ours, not reconciled)";
+    style=dashed;
+    menu  [label="app menu\nPreferences… (cmd-,)"];
+    panel [label="NSColorPanel\n(continuous)"];
+    bg    [label="main window\nbackgroundColor"];
+  }
+
+  dispatch [label="execute-actions\n(s/valid? gate)", style="rounded,bold"];
+  state    [label="state\n{:count n, :bg [r g b a]}", shape=ellipse, style=bold];
+
+  // data in: every mutation is an action vector
+  main  -> dispatch [label="[[:action/open-example id]]"];
+  ex    -> dispatch [label="[[:action/inc]] etc."];
+  prefs -> dispatch [label="[[:action/pick-bg]]"];
+  panel -> dispatch [label="[[:action/set-bg [r g b a]]]"];
+
+  // effects: the two places a handler touches AppKit directly
+  menu     -> prefs [label="show-preferences!", style=dashed];
+  dispatch -> panel [label="open-color-panel!", style=dashed];
+
+  // the single write, fanning out through three independently-keyed watches
+  dispatch -> state [label="swap!"];
+  state -> main  [label="::render"];
+  state -> prefs [label="::prefs-render"];
+  state -> bg    [label="::apply-bg"];
+  state -> ex    [label="::demo.example/<id>\n(per-example atoms)", style=dotted];
+}

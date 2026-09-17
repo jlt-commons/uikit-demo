@@ -1,0 +1,211 @@
+#+title: Live Currency
+#+author: Larry Staton
+
+* Live Currency
+
+The [[file:../currency/README.org][Currency Converter]], grown up: pick two currencies from drop-downs, type an
+amount, and the app fetches the real exchange rate and converts for you — no
+Convert button, no rate field. Rates come from [[https://frankfurter.dev][Frankfurter]], a keyless API
+over the ECB's daily reference rates, fetched with [[https://github.com/jolt-lang/http-client][jolt-lang/http-client]]
+(clj-http-lite on jolt host shims — TLS through OpenSSL via =jolt.ffi=, no JVM
+in sight).
+
+Findings that shaped the code, all verified in a scratch project first:
+
+- *HTTPS just works* under jolt — =(http/get url)= over TLS, plain response
+  map back.
+- *=:as :json= returns a string.* clj-http-lite's JSON coercion needs a JSON
+  parser on the classpath and jolt ships none, so the body arrives raw. The
+  first version regexed the one number it needed out of the string — and got
+  the right pushback: just use [[https://github.com/clojure/data.json][=clojure.data.json=]], it's pure Clojure.
+  Trying that produced jolt's best error message yet: =data.json='s date
+  writers touch =java.time.format.DateTimeFormatter=, which
+  [[https://jolt-lang.github.io/docs/rfc/0008][RFC 0008]] moves out of jolt core — and the load error /names the library
+  that supplies it/ (=io.github.jolt-lang/time=). One dep later, =read-str=
+  works verbatim. The retired regexes are kept below.
+- *=future= works — fibers are better.* The first version used =(future ...)=,
+  which runs fine under jolt (on a real OS thread). But bare =future= is
+  debatable idiom (see the [[https://guide.clojure.style/][community style guide]]'s lean toward more
+  explicit concurrency tools, and a never-deref'd future's habit of swallowing
+  exceptions), and researching the alternative surfaced the good stuff:
+  jolt's =core.async= is built on a *fiber runtime* (Chez continuations on a
+  preemptively-scheduled carrier pool — =host/chez/fibers.ss=, exposed
+  directly as =jolt.fibers=). =async/io-thread= runs its body on a fiber, and
+  blocking-shaped IO the runtime can see — channel ops, =jolt.socket= reads,
+  which is exactly what http-client's net layer is built on — *parks* the
+  fiber and frees its carrier. A thousand in-flight fetches cost a thousand
+  parked stacks, not a thousand OS threads. The caveat that picks the tool:
+  IO the runtime /cannot/ see (a blocking FFI call, =Thread/sleep=) pins the
+  carrier — =async/thread= is the escape for those. Either way the result
+  re-enters through the normal action pipeline (=swap!= is thread-safe; the
+  render watches marshal onto the AppKit main thread via =app/on-gui=), and
+  errors come back as =:action.fx/rate-failed= through an explicit try/catch
+  — never silently swallowed.
+- *Async has a race*, and the classic fix: if you change currencies while a
+  fetch is in flight, the stale response must not win. Every request is
+  tagged with its currency pair, and =:action.fx/rate-arrived= drops the
+  result unless the pair still matches the current selection.
+
+Two shell integrations:
+
+- *Drop-downs*: =:drop-down= takes =:items= (strings) and =:selected= (index);
+  its =:selected-changed= event carries the new index as the event value —
+  =nil= when nothing is selected, so the handlers are =when-let= guarded.
+- *=:on-open=*: this example added the registry's optional =:on-open= hook —
+  it runs on every open /and reopen/ of the example's window, so rates are
+  refreshed each time the window comes forward. (It has since grown a window
+  argument for the Particle Toy's timer lifecycle; this example ignores it.)
+
+The first parser, retired but kept (see the =:as :json= finding above) — the
+regex trade looked reasonable for one number, and lasted exactly one review:
+
+#+begin_src clojure :tangle no
+(defn- extract-rate
+  "Pull rates.<to> out of Frankfurter's response with a regex."
+  [body to]
+  (when-let [[_ n] (re-find (re-pattern (str "\"" to "\":([0-9.]+)")) (or body ""))]
+    (edn/read-string n)))
+
+(defn- extract-date [body]
+  (second (re-find #"\"date\":\"([^\"]+)\"" (or body ""))))
+#+end_src
+
+#+begin_src clojure :tangle ../../src/demo/examples/fx.clj :mkdirp true :comments link
+(ns demo.examples.fx
+  (:require [clojure.core.async :as async]
+            [clojure.data.json :as json]
+            [clojure.edn :as edn]
+            [clojure.spec.alpha :as s]
+            [clojure.string :as str]
+            [demo.registry :as reg]
+            [jolt.http-client :as http]))
+
+(def currencies ["USD" "EUR" "GBP" "JPY" "CHF" "CAD" "AUD"])
+
+(defonce state (atom {:from 0 :to 1 :amount "1"
+                      :rate nil :date nil :status :idle}))
+
+(defn- parse-number [s]
+  (let [s (str/trim (or s ""))]
+    (when (re-matches #"-?[0-9]+(\.[0-9]+)?" s)
+      (edn/read-string s))))
+
+(defn- fmt-2dp [n]
+  (let [cents (long (+ 0.5 (* 100.0 n)))]
+    (str (quot cents 100) "." (let [c (rem cents 100)]
+                                (if (< c 10) (str "0" c) c)))))
+
+;; --- the fetch ---------------------------------------------------------------
+
+(defn- parse-rates
+  "Frankfurter's response, parsed properly: {:rate <number> :date <string>}.
+  data.json is pure Clojure; under jolt it needs io.github.jolt-lang/time for
+  java.time (RFC 0008) — the load error names that dep itself."
+  [body to]
+  (let [m (json/read-str (or body "{}") :key-fn keyword)]
+    {:rate (get-in m [:rates (keyword to)])
+     :date (:date m)}))
+
+(defn fetch-rate!
+  "Fetch the current pair's rate on a FIBER (async/io-thread — the socket
+  read parks it instead of holding an OS thread); results re-enter as
+  actions, tagged with the pair they answer so a stale response can't win."
+  []
+  (let [{:keys [from to]} @state
+        from-c (currencies from)
+        to-c   (currencies to)
+        pair   [from-c to-c]]
+    (if (= from-c to-c)
+      (swap! state assoc :rate 1.0 :date nil :status :ok)
+      (do
+        (swap! state assoc :status :loading :rate nil)
+        (async/io-thread
+          (try
+            (let [resp (http/get (str "https://api.frankfurter.app/latest?from="
+                                      from-c "&to=" to-c)
+                                 {:conn-timeout 5000 :socket-timeout 10000})
+                  {:keys [rate date]} (parse-rates (:body resp) to-c)]
+              (reg/execute-actions
+               nil [[:action.fx/rate-arrived pair rate date]]))
+            (catch :default _
+              (reg/execute-actions nil [[:action.fx/rate-failed pair]]))))))))
+
+;; --- view --------------------------------------------------------------------
+
+(defn view [{:keys [from to amount rate date status]}]
+  (let [amt    (parse-number amount)
+        from-c (currencies from)
+        to-c   (currencies to)]
+    [:vbox {:spacing 12 :margin 16}
+     [:label {:markup [:span {:size "large" :weight "bold"} "Live Currency"]}]
+     [:hbox {:spacing 8}
+      [:label {:label "From:"}]
+      [:drop-down {:items currencies :selected from
+                   :on {:selected-changed [[:action.fx/set-from]]}}]
+      [:label {:label "To:"}]
+      [:drop-down {:items currencies :selected to
+                   :on {:selected-changed [[:action.fx/set-to]]}}]]
+     [:hbox {:spacing 8}
+      [:label {:label "Amount:"}]
+      [:entry {:text amount :width-request 120
+               :on {:change [[:action.fx/set-amount]]}}]]
+     [:label {:markup
+              (case status
+                :loading [:span {:foreground "#8e939d"} "Fetching rate…"]
+                :error   [:span {:foreground "#c04040"}
+                          "Rate fetch failed — check the connection."]
+                (if (and rate amt)
+                  [:span {:size "large"}
+                   (str amount " " from-c " = " (fmt-2dp (* amt rate)) " " to-c)]
+                  [:span {:foreground "#8e939d"} "—"]))}]
+     [:label {:markup [:span {:size "small" :foreground "#8e939d"}
+                       (if (and rate date)
+                         (str "1 " from-c " = " rate " " to-c " · ECB " date)
+                         " ")]}]]))
+
+;; --- actions -----------------------------------------------------------------
+
+(s/def ::pair (s/coll-of string? :count 2))
+
+(defmethod reg/action-spec :action.fx/set-from [_]
+  (s/cat :kind #{:action.fx/set-from}))
+(defmethod reg/action-spec :action.fx/set-to [_]
+  (s/cat :kind #{:action.fx/set-to}))
+(defmethod reg/action-spec :action.fx/set-amount [_]
+  (s/cat :kind #{:action.fx/set-amount}))
+(defmethod reg/action-spec :action.fx/rate-arrived [_]
+  (s/cat :kind #{:action.fx/rate-arrived} :pair ::pair
+         :rate (s/nilable number?) :date (s/nilable string?)))
+(defmethod reg/action-spec :action.fx/rate-failed [_]
+  (s/cat :kind #{:action.fx/rate-failed} :pair ::pair))
+
+(defmethod reg/run-action! :action.fx/set-from [event _]
+  (when-let [i (reg/event-value event)]
+    (swap! state assoc :from i)
+    (fetch-rate!)))
+
+(defmethod reg/run-action! :action.fx/set-to [event _]
+  (when-let [i (reg/event-value event)]
+    (swap! state assoc :to i)
+    (fetch-rate!)))
+
+(defmethod reg/run-action! :action.fx/set-amount [event _]
+  (swap! state assoc :amount (reg/event-value event)))
+
+(defmethod reg/run-action! :action.fx/rate-arrived [_ [_ pair rate date]]
+  (let [{:keys [from to]} @state]
+    ;; The race guard: apply only if this answers the CURRENT selection.
+    (when (= pair [(currencies from) (currencies to)])
+      (swap! state assoc
+             :rate rate :date date
+             :status (if rate :ok :error)))))
+
+(defmethod reg/run-action! :action.fx/rate-failed [_ [_ pair]]
+  (let [{:keys [from to]} @state]
+    (when (= pair [(currencies from) (currencies to)])
+      (swap! state assoc :rate nil :status :error))))
+
+(reg/register-example!
+ {:id :fx :title "Live Currency" :view view :state state
+  :width 420 :height 210 :on-open (fn [_window] (fetch-rate!))})
+#+end_src

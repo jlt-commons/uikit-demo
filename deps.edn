@@ -1,0 +1,52 @@
+;; [[file:README.org::*Dependencies][Dependencies:1]]
+{;; ffi/write took (p t offset v) before jolt 0.8.0 and (p t v offset) after,
+ ;; and the two cannot be told apart at runtime — so an older jolt must
+ ;; refuse, not guess (see "jolt 0.8.0: the write order"). glitter-uikit and
+ ;; http-client declare the same floor.
+ :jolt/min-version "0.8.0"
+ :paths ["src"]
+
+ ;; burinc → jlt-commons: both repos moved, and glitter-uikit now pins glitter
+ ;; under the jlt-commons name — rule 1's override only works when the
+ ;; coordinate NAMES match, so ours are renamed to match.
+ :deps {io.github.jlt-commons/glitter
+        {:git/url "https://github.com/jlt-commons/glitter"
+         :git/sha "33713d607d11cc1fbf8cda237c0b6f251ac43388"}
+        ;; 48f793b: ffi/write's value before the offset (jolt 0.8.0), plus CI/docs.
+        io.github.jlt-commons/glitter-uikit
+        {:git/url "https://github.com/jlt-commons/glitter-uikit"
+         :git/sha "48f793be6f09fe093497108a7c013d1d3586ef37"}
+        ;; NOT transitive under jolt (org.clojure/clojure is terminal) — see prose.
+        org.clojure/spec.alpha {:mvn/version "0.5.238"}
+        ;; clj-http-lite over jolt host shims (BSD sockets + OpenSSL via jolt.ffi
+        ;; — no JVM); the Live Currency example fetches ECB rates with it.
+        ;; 177b1ce: ffi/write's value before the offset (jolt 0.8.0); nothing
+        ;; else changed in src/.
+        jolt-lang/http-client
+        {:git/url "https://github.com/jolt-lang/http-client"
+         :git/sha "177b1ce4e529ffe052e6a1b7b103ed924de535f6"}
+        ;; Pure-Clojure JSON, and the host API it needs under jolt: data.json's
+        ;; date writers use java.time.format.DateTimeFormatter, which RFC 0008
+        ;; moves out of jolt core into jolt-lang/time — jolt's load error says
+        ;; exactly this, by name, when the dep is missing.
+        org.clojure/data.json {:mvn/version "2.5.1"}
+        io.github.jolt-lang/time
+        {:git/url "https://github.com/jolt-lang/time"
+         :git/sha "790b040a80dcca6cf853475e2a8feb802fb1b14b"}}
+
+ :aliases {:demo {:main-opts ["-m" "demo.core"]}}
+
+ ;; README.org is the source of truth; `jolt tangle` regenerates this file and
+ ;; src/ from it. Never edit the tangled files directly.
+ :tasks {tangle "find . -name README.org -not -path './Demo.app/*' | xargs -I{} emacs --batch -l package --eval '(package-initialize)' -l org {} -f org-babel-tangle"
+         demo   "jolt -M:demo"
+         ;; LaunchServices refuses script executables (see The -10669 saga);
+         ;; jolt build AOT-compiles the app into a self-contained Mach-O that
+         ;; IS the bundle executable (see The launcher dissolves).
+         bundle "mkdir -p Demo.app/Contents/MacOS && jolt build -m demo.core -o Demo.app/Contents/MacOS/demo && rm -rf Demo.app/Contents/MacOS/demo.build"
+         app    "open Demo.app"
+         diagram "dot -Tsvg dataflow.dot -o dataflow.svg"
+         ;; GitHub won't inline-play a .mov inside an org file, so the gallery
+         ;; embeds a GIF. Palette-based single pass keeps the colors clean.
+         media  "ffmpeg -y -i media/live-fx.mov -vf 'fps=12,scale=720:-1:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse' media/live-fx.gif"}}
+;; Dependencies:1 ends here

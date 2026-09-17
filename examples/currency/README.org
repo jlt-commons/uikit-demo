@@ -1,0 +1,124 @@
+#+title: Currency Converter
+#+author: Larry Staton
+
+* Currency Converter
+
+The classic from O'Reilly's /Learning Cocoa/ ([[https://www.oreilly.com/library/view/learning-cocoa/0596001606/ch07.html][chapter 7]], 2001; see also
+[[https://github.com/mrtazz/cocoa-currency-converter][mrtazz/cocoa-currency-converter]] for an Objective-C rendition): an exchange
+rate, an amount in dollars, a *Convert* button, a read-only result. Faithful
+on purpose — including keeping the explicit button rather than converting live
+on every keystroke (that would be a two-line change: move the =:convert=
+dispatch into the =:change= handlers).
+
+The port is a 25-years-later diff of the same program:
+
+| Learning Cocoa (2001)               | this notebook                          |
+|-------------------------------------+----------------------------------------|
+| =Converter= model class             | =convert=, one pure function           |
+| =ConverterController= + outlets     | a state atom + a pure view             |
+| Interface Builder nib               | =[:vbox ...]= data                     |
+| target/action wiring                | =:on {:click [[:action.currency/convert]]}= |
+
+The whole =ConverterController= — the class the book spends the chapter wiring
+— dissolves into three =defmethod=​s on the shared dispatcher.
+
+The dissolution is the point — in the spirit of Brian Marick's
+[[https://leanpub.com/fp-oo][/Functional Programming for the Object-Oriented Programmer/]]: take a program
+you once wired by hand and watch the ceremony become data.
+
+An aside that sharpens the nib row of the table: the nib was data /all
+along/. Interface Builder never generated code — a classic =.nib= is a binary
+archive of freeze-dried objects, and the XML =.xib= (Xcode 3 onward) made the
+same object graph diffable text. [[https://www.cappuccino.dev/][Cappuccino]] built a business on that fact:
+its =nib2cib= tool converted IB files into =.cib=​s that [[https://github.com/cappuccino/cappuccino][Objective-J]]
+rehydrated *in the browser* (280 Slides was the proof). The difference here
+isn't data-vs-code — it's /which/ data: a nib serializes constructed objects,
+where hiccup describes intent and lets the reconciler construct. Same
+philosophy, one level earlier.
+
+Two renderer notes, both inherited from upstream's [[https://github.com/burinc/glitter-uikit/blob/main/examples/glitter_uikit/temperature.clj][temperature example]] (the
+7GUIs [[https://eugenkiss.github.io/7guis/tasks/#temp][Temperature Converter]], this app's nearest cousin — its docstring is
+worth reading in full for the measured-not-guessed renderer findings):
+
+- =:width-request=, not =:width-chars=, sizes an =:entry= on AppKit
+  (=:width-chars= is a text-/wrapping/ hint there and won't constrain width).
+- Entry text arrives as =:glitter/value= — but *one level down from where
+  you'd look*. This notebook's first shipped bug: the handlers read
+  =(:glitter/value event)=, got =nil= on every keystroke, and Convert
+  dutifully computed nothing. The renderer puts =:glitter/value= in its raw
+  event map, but =glitter.core/build-event-map= nests that whole map under
+  =:glitter/dom-event= (lifting only =:glitter/node=) before the dispatcher
+  sees it. The counter never noticed — it reads no values. The fix lives
+  where every example benefits: =reg/event-value= does the =get-in=, the same
+  one upstream's temperature.clj makes in its nexus placeholder (with a
+  comment recording the same discovery).
+
+Action kinds are namespaced =:action.currency/*= — the dispatcher is shared
+app-wide, so example notebooks keep their kinds collision-free by convention.
+
+#+begin_src clojure :tangle ../../src/demo/examples/currency.clj :mkdirp true :comments link
+(ns demo.examples.currency
+  (:require [clojure.edn :as edn]
+            [clojure.spec.alpha :as s]
+            [clojure.string :as str]
+            [demo.registry :as reg]))
+
+(defonce state (atom {:rate "" :dollars "" :amount nil}))
+
+;; The book's Converter class, in its entirety.
+(defn convert [dollars rate] (* dollars rate))
+
+(defn- parse-number
+  "Strict decimal parse via edn/read-string — nil for anything else.
+  (Portable: no host float-parsing interop assumed.)"
+  [s]
+  (let [s (str/trim (or s ""))]
+    (when (re-matches #"-?[0-9]+(\.[0-9]+)?" s)
+      (edn/read-string s))))
+
+(defn- fmt-2dp
+  "Two decimal places, the book's display format, without host format/printf."
+  [n]
+  (let [cents (long (+ 0.5 (* 100.0 n)))]
+    (str (quot cents 100) "." (let [c (rem cents 100)]
+                                (if (< c 10) (str "0" c) c)))))
+
+(defn view [{:keys [amount]}]
+  [:vbox {:spacing 10 :margin 16}
+   [:label {:markup [:span {:size "large" :weight "bold"} "Currency Converter"]}]
+   [:hbox {:spacing 8}
+    [:label {:label "Exchange Rate per $1:"}]
+    [:entry {:width-request 120 :on {:change [[:action.currency/set-rate]]}}]]
+   [:hbox {:spacing 8}
+    [:label {:label "Dollars to Convert:"}]
+    [:entry {:width-request 120 :on {:change [[:action.currency/set-dollars]]}}]]
+   [:hbox {:spacing 8}
+    [:label {:label "Amount in Other Currency:"}]
+    ;; The book uses a non-editable text field; a label is the honest
+    ;; equivalent here (no :editable prop on :entry in the v1 widget set).
+    [:label {:markup [:span {:weight "bold"} (if amount (fmt-2dp amount) "--")]}]]
+   [:button {:label "Convert" :on {:click [[:action.currency/convert]]}}]])
+
+(defmethod reg/action-spec :action.currency/set-rate [_]
+  (s/cat :kind #{:action.currency/set-rate}))
+(defmethod reg/action-spec :action.currency/set-dollars [_]
+  (s/cat :kind #{:action.currency/set-dollars}))
+(defmethod reg/action-spec :action.currency/convert [_]
+  (s/cat :kind #{:action.currency/convert}))
+
+(defmethod reg/run-action! :action.currency/set-rate [event _]
+  (swap! state assoc :rate (reg/event-value event)))
+(defmethod reg/run-action! :action.currency/set-dollars [event _]
+  (swap! state assoc :dollars (reg/event-value event)))
+(defmethod reg/run-action! :action.currency/convert [_ _]
+  (swap! state (fn [{:keys [rate dollars] :as st}]
+                 (let [r (parse-number rate)
+                       d (parse-number dollars)]
+                   ;; Explicit nil on unparseable input — no exception-driven
+                   ;; control flow (the silent-swallow risk upstream flags).
+                   (assoc st :amount (when (and r d) (convert d r)))))))
+
+(reg/register-example!
+ {:id :currency :title "Currency Converter" :view view :state state
+  :width 400 :height 230})
+#+end_src

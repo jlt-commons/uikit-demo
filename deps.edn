@@ -16,7 +16,7 @@
          :git/sha "4fba1ddb069be798adc1ef0c028e6e21a21ec9f3"}
         io.github.jlt-commons/glitter-uikit
         {:git/url "https://github.com/jlt-commons/glitter-uikit"
-         :git/sha "8923950aca52a6ddf6483a60ca8381cb590cad58"}
+         :git/sha "b7de95227b67d74d9af83fd70d7a0e3272ce403e"}
         ;; NOT transitive under jolt (org.clojure/clojure is terminal) — see
         ;; docs/guide/dependencies.md.
         org.clojure/spec.alpha {:mvn/version "0.5.238"}

@@ -1,23 +1,3 @@
-#+title: Counter
-#+author: Larry Staton
-
-* Counter
-
-The demo's first example — it *was* the main window until the hub arrived (its
-original form is preserved in the top-level notebook's View section). The
-shape is [[https://replicant.fun][Replicant]]'s counter, rendered through AppKit: own state atom, pure
-view, actions as data. It's also the hello-world of [[https://eugenkiss.github.io/7guis/tasks/#counter][7GUIs]], whose Counter
-task upstream implements too ([[https://github.com/burinc/glitter-uikit/blob/main/examples/glitter_uikit/counter.clj][examples/glitter_uikit/counter.clj]]) — comparing
-that version with this one shows what the hub's registry buys: theirs
-bootstraps its own app loop, ours is just a view.
-
-This notebook is also the template for every example: require only
-=demo.registry= (never =demo.core= — the dependency points the other way),
-=defmethod= your action specs and handlers beside the feature, and
-=register-example!= at the end. The hub picks it up through one =require= line
-in =demo.core=.
-
-#+begin_src clojure :tangle ../../src/demo/examples/counter.clj :mkdirp true :comments link
 (ns demo.examples.counter
   (:require [clojure.spec.alpha :as s]
             [demo.registry :as reg]))
@@ -44,4 +24,3 @@ in =demo.core=.
 (reg/register-example!
  {:id :counter :title "Counter" :view view :state state
   :width 300 :height 170})
-#+end_src

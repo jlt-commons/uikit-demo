@@ -113,19 +113,25 @@ The =tangle= task runs batch Emacs, which skips init files — hence the explici
         org.clojure/spec.alpha {:mvn/version "0.5.238"}
         ;; clj-http-lite over jolt host shims (BSD sockets + OpenSSL via jolt.ffi
         ;; — no JVM); the Live Currency example fetches ECB rates with it.
-        ;; 177b1ce: ffi/write's value before the offset (jolt 0.8.0); nothing
-        ;; else changed in src/.
+        ;; v0.0.11: 177b1ce (v0.0.6) had a `recur` across a `try` in net.clj's
+        ;; connect walk — jolt refuses that as of 0.8.2, so the old pin no
+        ;; longer builds. Fixed upstream; this pin is past that fix.
         jolt-lang/http-client
         {:git/url "https://github.com/jolt-lang/http-client"
-         :git/sha "177b1ce4e529ffe052e6a1b7b103ed924de535f6"}
+         :git/sha "2fb8a981972b67631150e81765de58d822a99e54"}
         ;; Pure-Clojure JSON, and the host API it needs under jolt: data.json's
         ;; date writers use java.time.format.DateTimeFormatter, which RFC 0008
         ;; moves out of jolt core into jolt-lang/time — jolt's load error says
         ;; exactly this, by name, when the dep is missing.
         org.clojure/data.json {:mvn/version "2.5.1"}
+        ;; 33c5e98 (v0.0.8) is the commit that actually declares :jolt/provides
+        ;; (RFC 0014) for these classes. The old pin predates it, so jolt sees
+        ;; the dependency but not what it provides and refuses to load
+        ;; DateTimeFormatter with the same "no dependency provides" error as
+        ;; if jolt-lang/time weren't declared at all.
         io.github.jolt-lang/time
         {:git/url "https://github.com/jolt-lang/time"
-         :git/sha "790b040a80dcca6cf853475e2a8feb802fb1b14b"}}
+         :git/sha "33c5e9831c046cfcbe68bc0c9c33e92568eaebb1"}}
 
  :aliases {:demo {:main-opts ["-m" "demo.core"]}}
 

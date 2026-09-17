@@ -28,10 +28,9 @@ Start here, then follow the link that matches what you're trying to do.
 ## Requirements
 
 - [jolt](https://github.com/jolt-lang/jolt) 0.8.0 or newer
-- `brew bundle` installs the rest: GTK4 (a transitive dependency of
-  glitter's native layer, even though this demo renders pure AppKit),
-  Graphviz (renders the dataflow diagram), and ffmpeg (converts the
-  screen recording into an inline GIF)
+- `brew bundle` installs the rest: Graphviz (renders the dataflow
+  diagram) and ffmpeg (converts the screen recording into an inline
+  GIF)
 
 ## Running
 

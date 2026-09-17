@@ -14,11 +14,10 @@ The two rules worth carrying into any other jolt project:
    outright), this project's own `io.github.burinc/glitter` had to be
    renamed too, or `jolt -Stree` would have resolved two separate
    copies side by side instead of one shared one.
-2. **GTK4 must be installed** (`brew install gtk4`) even though this
-   demo renders pure AppKit. glitter's own `deps.edn` declares GTK
-   natives under `:jolt/native`, jolt inherits a dependency's natives
-   transitively, and it hard-fails before any namespace loads at all
-   when one is missing.
+2. **A pin's own `:jolt/native` declarations become this project's
+   problem too**, whether or not this project's code ever calls into
+   them. This bit for real: see "The GTK4 requirement that shouldn't
+   have existed" below for the fix, once this project actually hit it.
 
 `org.clojure/spec.alpha` needs an explicit declaration here that it
 wouldn't need on the JVM. Jolt *is* Clojure, so `org.clojure/clojure`
@@ -121,3 +120,56 @@ The pattern behind both: pin bumps aren't only about picking up new
 features. On a fast-moving compiler, an old pin can simply stop being
 buildable, and the fix is almost always already sitting on the
 dependency's own default branch.
+
+## The GTK4 requirement that shouldn't have existed
+
+This project used to pin `io.github.jlt-commons/glitter` directly, for
+one reason only: `demo.core`/`demo.registry` need `glitter.core` and
+`glitter.alias`. But `glitter`'s own `deps.edn` declares GTK4/GLib/
+GObject/GIO under top-level `:jolt/native`, and jolt inherits a
+dependency's declared natives transitively, hard-failing in
+`load-natives!` before any namespace loads if one is missing. So this
+demo — pure AppKit, zero GTK calls anywhere — needed GTK4 installed
+just to boot. An `:aliases`-scoped `:jolt/native` doesn't help either;
+it's silently ignored (verified live, same finding `glitter-uikit`'s
+own `deps.edn` records).
+
+Fixed 2026-09-17 by extracting the toolkit-agnostic two-thirds of
+`glitter` (`glitter.core`, `glitter.protocols`, `glitter.alias`, and
+friends — no `:jolt/native` anywhere in its own `deps.edn`) into a
+standalone [glitter-core](https://github.com/jlt-commons/glitter-core)
+repo. Proposed and tracked at
+[jlt-commons/meta#1](https://github.com/jlt-commons/meta/issues/1).
+This project now pins `glitter-core` directly instead of `glitter`,
+and `glitter-uikit` (a dependency of this project too) did the same —
+so `glitter` is no longer anywhere in this project's dependency graph
+at all. Verified: `(find-ns 'glitter.gtk)` returns `nil` under the new
+pins, and `jolt path` shows no `glitter` gitlib path whatsoever.
+
+Three more pin churns followed the same day, each for the reason
+`:jolt/min-version`'s own header comment predicts — a top-level
+coordinate overriding a transitive one means everyone's pin has to
+track everyone else's:
+
+- `glitter-core` had no commit pushed to its GitHub repo yet at first
+  (a private, brand-new repo), so its pin briefly used `git@` (SSH)
+  instead of this file's usual `https://` form — jolt's git fetch
+  can't do an anonymous `https://` clone of a private repo. Switched
+  back to `https://` once `glitter-core` went public.
+- `glitter-core` later raised its own `:jolt/min-version` from
+  `0.7.24` to `0.8.0` (for family-wide consistency, not because
+  `glitter-core` itself needs it — it has zero `jolt.ffi` usage).
+  `glitter-uikit`'s own `glitter-core` pin needed bumping to pick that
+  up, and this project's pin needed bumping to match `glitter-uikit`'s
+  new commit in turn.
+- `glitter-uikit`'s history got rewritten (an unrelated commit-message
+  cleanup), which orphaned every SHA on its old `main` — including the
+  one this project had just pinned. Re-pinned to the equivalent
+  commit on the rewritten history.
+
+The lesson isn't really about GTK4. It's that pinning a coordinate
+this project doesn't use directly (`glitter-core`, `nexus-jolt`) still
+means tracking that coordinate's own upstream churn, because jolt's
+breadth-first, top-level-wins resolution means whatever THIS project
+declares is what actually gets built, regardless of what any
+transitive dependency itself pins.

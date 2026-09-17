@@ -34,9 +34,7 @@ the way.
 ## Requirements
 
 - [jolt](https://github.com/jolt-lang/jolt) 0.8.0 or newer
-- `brew bundle` installs the rest: GTK4 (a transitive dependency of
-  glitter's native layer, even though this demo renders pure AppKit),
-  Graphviz, and ffmpeg
+- `brew bundle` installs the rest: Graphviz and ffmpeg
 
 ## Running
 

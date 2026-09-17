@@ -90,7 +90,7 @@ opening a second example never displaces the first.
 
 ## Dataflow
 
-![Dataflow diagram](../../dataflow.svg)
+![Dataflow diagram](../demos/dataflow.svg)
 
 Actions flow from any window into `execute-actions`, which validates
 the batch and dispatches each one. A handler either swaps `state`

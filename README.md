@@ -8,23 +8,23 @@ native Clojure on Chez Scheme, no JVM anywhere). If you come from the
 web: glitter is the reconciler, AppKit is the DOM. Hiccup goes in, real
 `NSButton`s come out.
 
-![The hub and every example, live](media/examples.png)
+![The hub and every example, live](docs/demos/examples.png)
 
 ## Examples
 
 | Preview | Window | What it shows |
 |---|---|---|
-| <img src="media/hub.png" width="240"> | Hub | one button per registered example, derived from a registry each example joins with a single `require` line |
-| <img src="media/counter.png" width="240"> | Counter | the 7GUIs Counter task, and the template every other example follows |
-| <img src="media/currency-converter.png" width="240"> | Currency Converter | a faithful port of *Learning Cocoa*'s 2001 example, its whole controller class dissolved into three `defmethod`s |
-| <img src="media/live-fx.gif" width="240"> | Live Currency | a fiber-parked HTTPS fetch of real ECB rates, converting as you change currencies |
+| <img src="docs/demos/hub.png" width="240"> | Hub | one button per registered example, derived from a registry each example joins with a single `require` line |
+| <img src="docs/demos/counter.png" width="240"> | Counter | the 7GUIs Counter task, and the template every other example follows |
+| <img src="docs/demos/currency-converter.png" width="240"> | Currency Converter | a faithful port of *Learning Cocoa*'s 2001 example, its whole controller class dissolved into three `defmethod`s |
+| <img src="docs/demos/live-fx.gif" width="240"> | Live Currency | a fiber-parked HTTPS fetch of real ECB rates, converting as you change currencies |
 | — | Particle Toy | a CALayer-backed physics playground: click to burst, gravity and wall bounces settle it |
 
-There's also a [screen recording](media/live-fx.mov) of Live Currency
-fetching real rates as the currencies change, and two more Live
-Currency captures, converting
-[USD to EUR](media/fx-usd-eur.png) and, a moment later,
-[USD to GBP](media/fx-usd-gbp.png).
+There's also a [screen recording](docs/demos/live-fx.mov) of Live
+Currency fetching real rates as the currencies change, and two more
+Live Currency captures, converting
+[USD to EUR](docs/demos/fx-usd-eur.png) and, a moment later,
+[USD to GBP](docs/demos/fx-usd-gbp.png).
 
 **[Read the guide →](docs/guide/index.md)** for how the app is built,
 the AppKit integration that isn't reconciled, the dependency pins and

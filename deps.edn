@@ -48,7 +48,9 @@
          ;; (see docs/guide/bundling.md).
          bundle "mkdir -p Demo.app/Contents/MacOS && jolt build -m demo.core -o Demo.app/Contents/MacOS/demo && rm -rf Demo.app/Contents/MacOS/demo.build"
          app    "open Demo.app"
-         diagram "dot -Tsvg dataflow.dot -o dataflow.svg"
+         diagram "dot -Tsvg dataflow.dot -o docs/demos/dataflow.svg"
          ;; GitHub won't inline-play a .mov, so the gallery embeds a GIF.
-         ;; Palette-based single pass keeps the colors clean.
-         media  "ffmpeg -y -i media/live-fx.mov -vf 'fps=12,scale=720:-1:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse' media/live-fx.gif"}}
+         ;; Palette-based single pass keeps the colors clean. Images live
+         ;; under docs/demos/ (not media/) so the docs-engine's asset-dirs
+         ;; allowlist picks them up too.
+         media  "ffmpeg -y -i docs/demos/live-fx.mov -vf 'fps=12,scale=720:-1:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse' docs/demos/live-fx.gif"}}

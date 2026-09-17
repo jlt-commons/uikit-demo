@@ -1,0 +1,19 @@
+;; Configuration for the documentation site, read by the jlt-commons
+;; docs-engine (https://github.com/jlt-commons/docs-engine).
+;;
+;; Build it locally with `bb site:serve`. CI builds and publishes it from
+;; .github/workflows/site.yml.
+{;; :base-path is what makes this a project site rather than an org one.
+ ;; The site is served at https://jlt-commons.github.io/uikit-demo/, so
+ ;; every URL the engine emits needs that prefix. Leave it out and the
+ ;; pages still render, but each one loads the ORGANIZATION site's
+ ;; stylesheet and every image 404s.
+ :base-path   "/uikit-demo"
+
+ :title       "uikit-demo"
+ :description "A demo of glitter-uikit, the native macOS (AppKit) renderer for glitter: a hub of live examples (counter, currency converter, live FX, particle toy) built as a real app bundle."
+
+ ;; docs/demos holds the recorded screenshots/GIF the guide pages embed,
+ ;; referenced as ../demos/*. Without this the pages render with every
+ ;; image broken.
+ :asset-dirs  ["demos"]}

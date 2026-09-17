@@ -5,16 +5,16 @@
  :jolt/min-version "0.8.0"
  :paths ["src"]
 
- ;; burinc → jlt-commons: both repos moved, and glitter-uikit now pins glitter
- ;; under the jlt-commons name — rule 1's override only works when the
- ;; coordinate NAMES match, so ours are renamed to match.
- :deps {io.github.jlt-commons/glitter
-        {:git/url "https://github.com/jlt-commons/glitter"
-         :git/sha "33713d607d11cc1fbf8cda237c0b6f251ac43388"}
-        ;; 48f793b: ffi/write's value before the offset (jolt 0.8.0), plus CI/docs.
-        io.github.jlt-commons/glitter-uikit
-        {:git/url "https://github.com/jlt-commons/glitter-uikit"
-         :git/sha "48f793be6f09fe093497108a7c013d1d3586ef37"}
+ ;; demo.core/demo.registry only ever needed glitter.core/glitter.alias, both
+ ;; of which now live in glitter-core (natives-free — no :jolt/native GTK4/
+ ;; GLib declaration anywhere in its deps.edn, unlike the full glitter
+ ;; package this used to pin). glitter-uikit is :local/root too, temporarily:
+ ;; the PUBLISHED 48f793b commit still depends on full glitter, and only the
+ ;; local checkout has been switched to depend on glitter-core directly.
+ ;; Once glitter-core, nexus-jolt, and an updated glitter-uikit are all
+ ;; pushed, switch both entries below back to pinned :git/url + :git/sha.
+ :deps {io.github.jlt-commons/glitter-core {:local/root "../glitter-core"}
+        io.github.jlt-commons/glitter-uikit {:local/root "../glitter-uikit"}
         ;; NOT transitive under jolt (org.clojure/clojure is terminal) — see
         ;; docs/guide/dependencies.md.
         org.clojure/spec.alpha {:mvn/version "0.5.238"}

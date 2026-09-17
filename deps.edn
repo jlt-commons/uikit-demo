@@ -8,13 +8,22 @@
  ;; demo.core/demo.registry only ever needed glitter.core/glitter.alias, both
  ;; of which now live in glitter-core (natives-free — no :jolt/native GTK4/
  ;; GLib declaration anywhere in its deps.edn, unlike the full glitter
- ;; package this used to pin). glitter-uikit is :local/root too, temporarily:
- ;; the PUBLISHED 48f793b commit still depends on full glitter, and only the
- ;; local checkout has been switched to depend on glitter-core directly.
- ;; Once glitter-core, nexus-jolt, and an updated glitter-uikit are all
- ;; pushed, switch both entries below back to pinned :git/url + :git/sha.
- :deps {io.github.jlt-commons/glitter-core {:local/root "../glitter-core"}
-        io.github.jlt-commons/glitter-uikit {:local/root "../glitter-uikit"}
+ ;; package this used to pin). glitter-uikit@49effd6 now pins glitter-core/
+ ;; nexus-jolt itself (no more :local/root on its side either), so this can
+ ;; go back to a normal pin too.
+ ;;
+ ;; glitter-core's coordinate uses git@ (SSH), not https:// like the others
+ ;; below — it's a private repo, and jolt's git fetch can't do an anonymous
+ ;; https clone against one. Verified live: https:// fails with "could not
+ ;; read Username for 'https://github.com'", git@ resolves and clones
+ ;; cleanly (reuses this machine's existing GitHub SSH key). Anyone else
+ ;; building this needs the same SSH access, or glitter-core made public.
+ :deps {io.github.jlt-commons/glitter-core
+        {:git/url "git@github.com:jlt-commons/glitter-core.git"
+         :git/sha "8fb74264008b087e1fec7b30cf81a2862188622c"}
+        io.github.jlt-commons/glitter-uikit
+        {:git/url "https://github.com/jlt-commons/glitter-uikit"
+         :git/sha "49effd68f914abcd5b78a0a3098e59a1b836870f"}
         ;; NOT transitive under jolt (org.clojure/clojure is terminal) — see
         ;; docs/guide/dependencies.md.
         org.clojure/spec.alpha {:mvn/version "0.5.238"}

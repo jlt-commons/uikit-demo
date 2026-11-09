@@ -38,17 +38,20 @@
         ;; the dependency but not what it provides and refuses to load
         ;; DateTimeFormatter with the same "no dependency provides" error as
         ;; if jolt-lang/time weren't declared at all.
+        ;; v0.0.13: v0.0.8's locale_data.clj has unescaped quotes in its ns
+        ;; docstring, which jolt 0.8.x rejects as an invalid ns form.
         io.github.jolt-lang/time
         {:git/url "https://github.com/jolt-lang/time"
-         :git/sha "33c5e9831c046cfcbe68bc0c9c33e92568eaebb1"}}
+         :git/sha "753905d0e694600f593b9904e880a8a8379fb7b1"}}
 
  :aliases {:demo {:main-opts ["-m" "demo.core"]}}
 
  :tasks {demo   "jolt -M:demo"
          ;; LaunchServices refuses script executables; jolt build AOT-compiles
          ;; the app into a self-contained Mach-O that IS the bundle executable
-         ;; (see docs/guide/bundling.md).
-         bundle "mkdir -p Demo.app/Contents/MacOS && jolt build -m demo.core -o Demo.app/Contents/MacOS/demo && rm -rf Demo.app/Contents/MacOS/demo.build"
+         ;; (see docs/guide/bundling.md). macos/Info.plist names the bundle
+         ;; (CFBundleName, CFBundleIdentifier, CFBundleExecutable = demo).
+         bundle "mkdir -p Demo.app/Contents/MacOS && cp macos/Info.plist Demo.app/Contents/Info.plist && jolt build -m demo.core -o Demo.app/Contents/MacOS/demo && rm -rf Demo.app/Contents/MacOS/demo.build"
          app    "open Demo.app"
          diagram "dot -Tsvg dataflow.dot -o docs/demos/dataflow.svg"
          ;; GitHub won't inline-play a .mov, so the gallery embeds a GIF.

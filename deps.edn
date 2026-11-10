@@ -38,11 +38,11 @@
         ;; the dependency but not what it provides and refuses to load
         ;; DateTimeFormatter with the same "no dependency provides" error as
         ;; if jolt-lang/time weren't declared at all.
-        ;; v0.0.13: v0.0.8's locale_data.clj has unescaped quotes in its ns
+        ;; v0.0.15: v0.0.8's locale_data.clj has unescaped quotes in its ns
         ;; docstring, which jolt 0.8.x rejects as an invalid ns form.
         io.github.jolt-lang/time
         {:git/url "https://github.com/jolt-lang/time"
-         :git/sha "753905d0e694600f593b9904e880a8a8379fb7b1"}}
+         :git/sha "80e5fc22d9ddd8ee2f2f525580fbc643d0ecba4c"}}
 
  :aliases {:demo {:main-opts ["-m" "demo.core"]}}
 

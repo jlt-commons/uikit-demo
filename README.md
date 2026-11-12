@@ -57,3 +57,8 @@ which built the same app as a literate org-mode document. This copy
 converts it into a conventional, hand-maintained Clojure project; the
 original document's own history is the fuller account of how each
 piece came to be.
+
+## License
+
+EPL 2.0, the same license as Jolt and Clojure. See [LICENSE](LICENSE). Larry Staton
+agreed to EPL 2.0 for the parts adapted from his original.

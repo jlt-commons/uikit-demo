@@ -2,8 +2,10 @@
 
 A macOS app bundle is nothing but a folder convention: `Demo.app/Contents/`
 holding an `Info.plist` and an executable under `MacOS/`. `jolt bundle`
-builds that folder, and `jolt app` (or double-clicking `Demo.app` in
-Finder) launches it.
+builds that folder: it copies `macos/Info.plist` into
+`Demo.app/Contents/` and `jolt build`s the executable it names
+(`CFBundleExecutable` = `demo`). `jolt app` (or double-clicking
+`Demo.app` in Finder) launches it.
 
 ## What the bundle buys over `jolt demo`
 
